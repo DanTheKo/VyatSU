@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class PostService {
@@ -28,15 +27,22 @@ public class PostService {
     public List<Post> getAllPosts() {
         return repository.findAll();
     }
-    public Page<Post> getAllPosts(Pageable pageable) {
+    public Page<Post> getAllPostsPageable(Pageable pageable) {
         return repository.findAll(pageable);
     }
 
     public Page<Post> getAllPostsUser(Pageable pageable, User  user) {
+        Specification<Post> specification;
+        if(!user.getAuthority().getAuthority().equals("ROLE_ADMIN")){
+            specification = Specification
+                    .where(PostSpecifications.hasUser(user));
+            return repository.findAll(specification,  pageable);
+        }
+        else{
+            return repository.findAll(pageable);
+        }
 
-        Specification<Post> specification = Specification
-                .where(PostSpecifications.hasUser(user));
-        return repository.findAll(specification,  pageable);
+
     }
 
 //    public List<Post> getAllPostsOld(String text, LocalDate startDate, LocalDate endDate) throws ParseException {
@@ -48,13 +54,31 @@ public class PostService {
 //                .collect(Collectors.toList());
 //    }
 
-    public Page<Post> getAllPosts(String text, LocalDate startDate, LocalDate endDate, User user, Pageable pageable) throws ParseException {
-        Specification<Post> specification = Specification
-                .where(PostSpecifications.hasText(text))
-                .and(PostSpecifications.afterDate(startDate))
-                .and(PostSpecifications.beforeDate(endDate))
-                .and(PostSpecifications.hasUser(user));
-        return repository.findAll(specification, pageable);
+    public Page<Post> FilterAndGetAllPosts(String text, LocalDate startDate, LocalDate endDate, User user, Pageable pageable) throws ParseException {
+        Specification<Post> specification;
+        if(!user.getAuthority().getAuthority().equals("ROLE_ADMIN")){
+            specification = Specification
+                    .where(PostSpecifications.hasText(text))
+                    .and(PostSpecifications.afterDate(startDate))
+                    .and(PostSpecifications.beforeDate(endDate))
+                    .and(PostSpecifications.hasUser(user));
+        }
+        else{
+            specification = Specification
+                    .where(PostSpecifications.hasText(text))
+                    .and(PostSpecifications.afterDate(startDate))
+                    .and(PostSpecifications.beforeDate(endDate));
+        }
+        return repository.findAll(specification,  pageable);
+
+//        Specification<Post> specification = Specification
+//                .where(PostSpecifications.hasText(text))
+//                .and(PostSpecifications.afterDate(startDate))
+//                .and(PostSpecifications.beforeDate(endDate));
+//        if(!user.getAuthority().getAuthority().equals("ROLE_ADMIN")){
+//            specification.and(PostSpecifications.hasUser(user));
+//        }
+//        return repository.findAll(specification, pageable);
     }
 
 

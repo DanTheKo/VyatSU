@@ -49,32 +49,16 @@ public class PostController {
     public String showPostsList(Principal principal, Model model, @RequestParam(defaultValue = "0") int page) {
         Pageable pageable = PageRequest.of(page, 5);
         if(principal != null){
-            if(userService.getUserByUserName(principal.getName()).getAuthority().getAuthority().equals("ROLE_ADMIN")){
-                Page<Post> postPage = postService.getAllPosts(pageable);
-                model.addAttribute("posts", postPage.getContent());
-                model.addAttribute("post", new Post());
-//        model.addAttribute("username", username);
-                model.addAttribute("currentPage", page);
-                model.addAttribute("totalPages", postPage.getTotalPages());
-                List<Post> topPosts = postService.getTopPosts();
-                model.addAttribute("topPosts", topPosts);
-                text = null;
-                start = null;
-                end = null;
-            }
-            else {
-                Page<Post> postPage = postService.getAllPostsUser(pageable,  userService.getUserByUserName(principal.getName()));
-                model.addAttribute("posts", postPage.getContent());
-                model.addAttribute("post", new Post());
-//        model.addAttribute("username", username);
-                model.addAttribute("currentPage", page);
-                model.addAttribute("totalPages", postPage.getTotalPages());
-                List<Post> topPosts = postService.getTopPosts();
-                model.addAttribute("topPosts", topPosts);
-                text = null;
-                start = null;
-                end = null;
-            }
+            Page<Post> postPage = postService.getAllPostsUser(pageable, userService.getUserByUserName(principal.getName()));
+            model.addAttribute("posts", postPage.getContent());
+            model.addAttribute("post", new Post());
+            model.addAttribute("currentPage", page);
+            model.addAttribute("totalPages", postPage.getTotalPages());
+            List<Post> topPosts = postService.getTopPosts();
+            model.addAttribute("topPosts", topPosts);
+            text = null;
+            start = null;
+            end = null;
 
         }
 
@@ -103,12 +87,10 @@ public class PostController {
     @GetMapping("/posts/addOrUpdate/add")
     public String getAddPost(Principal principal, Model model) {
         if(principal != null){
-            System.out.println(principal.getName());
+            Page<Post> postPage = postService.getAllPostsUser(PageRequest.of(0, 5), userService.getUserByUserName(principal.getName()));
+            model.addAttribute("posts", postPage.getContent());
+            model.addAttribute("post", new Post());
         }
-        assert principal != null;
-        Page<Post> organizationPage = postService.getAllPostsUser(PageRequest.of(0, 5), userService.getUserByUserName(principal.getName()));
-        model.addAttribute("posts", organizationPage.getContent());
-        model.addAttribute("post", new Post());
         return "addOrUpdate";
     }
 
@@ -155,37 +137,40 @@ public class PostController {
                              @RequestParam(value = "end", required = false) LocalDate endDate,
                              @RequestParam(defaultValue = "0") int page) throws ParseException {
         Post post = new Post();
-
         Pageable pageable = PageRequest.of(page, 5);
-        Page<Post> postPage = postService.getAllPosts(text, startDate, endDate, userService.getUserByUserName(principal.getName()),pageable);
+        Page<Post> postPage;
+        if(principal != null){
+            postPage = postService.FilterAndGetAllPosts(text, startDate, endDate, userService.getUserByUserName(principal.getName()),pageable);
+            if(text!= null){
+                this.text = text;
+            }
+            if(startDate!= null){
+                this.start = startDate;
+            }
+            if(endDate != null){
+                this.end = endDate;
+            }
 
-        if(text!= null){
-            this.text = text;
+            model.addAttribute("posts", postPage.getContent());
+            model.addAttribute("post", post);
+            model.addAttribute("text", text);
+            model.addAttribute("start", startDate);
+            model.addAttribute("end", endDate);
+            model.addAttribute("currentPage", page);
+            model.addAttribute("totalPages", postPage.getTotalPages());
+
+            List<Post> topPosts = postService.getTopPosts();
+            model.addAttribute("topPosts", topPosts);
+
+            UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("/posts/filter");
+            if (text != null && !text.isEmpty()) uriBuilder.queryParam("text", text);
+            if (startDate != null) uriBuilder.queryParam("start", startDate);
+            if (endDate != null) uriBuilder.queryParam("end", endDate);
+            model.addAttribute("filterUrl", uriBuilder.build().toString());
         }
-        if(startDate!= null){
-            this.start = startDate;
-        }
-        if(endDate != null){
-            this.end = endDate;
-        }
 
-        model.addAttribute("posts", postPage.getContent());
-        model.addAttribute("post", post);
-        model.addAttribute("text", text);
-        model.addAttribute("start", startDate);
-        model.addAttribute("end", endDate);
-//        model.addAttribute("username", username);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", postPage.getTotalPages());
 
-        List<Post> topPosts = postService.getTopPosts();
-        model.addAttribute("topPosts", topPosts);
 
-        UriComponentsBuilder uriBuilder = UriComponentsBuilder.fromUriString("/posts/filter");
-        if (text != null && !text.isEmpty()) uriBuilder.queryParam("text", text);
-        if (startDate != null) uriBuilder.queryParam("start", startDate);
-        if (endDate != null) uriBuilder.queryParam("end", endDate);
-        model.addAttribute("filterUrl", uriBuilder.build().toString());
 
         return "posts";
     }
@@ -206,6 +191,18 @@ public class PostController {
     public String deletePost(@PathVariable(value = "id") Integer id) {
         Post post = postService.getById(id);
         postService.delete(post);
-        return "redirect:/";
+        String str = "redirect:/posts/filter?text=";
+        if(text!= null){
+            str += text;
+        }
+        str += "&start=";
+        if(start != null){
+            str +=  start.toString();
+        }
+        str += "&end=";
+        if(end != null){
+            str += end.toString();
+        }
+        return str;
     }
 }
